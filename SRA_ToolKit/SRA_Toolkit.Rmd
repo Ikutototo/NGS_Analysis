@@ -1,0 +1,121 @@
+---
+title: "SRA_Toolkit"
+author: "Saito Ikuto"
+date: "`r Sys.Date()`"
+output:   
+  html_document: 
+    df_print: tibble
+    toc: yes
+    toc_depth: 4
+    toc_float: true
+    highlight: "haddock"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+[Quick Toolkit Configuration](https://github.com/ncbi/sra-tools/wiki/03.-Quick-Toolkit-Configuration)   
+
+[SRA Run Selector_PRJNA643596](https://www.ncbi.nlm.nih.gov/Traces/study/?query_key=1&WebEnv=MCID_66bc04eef9bbeb0d8a27de1e&o=acc_s%3Aa)
+
+Paper: **The phyllosphere microbiome shifts toward combating melanose pathogen**    
+All the raw sequencing data from this project are available in the NCBI Sequence Read Archive (SRA) database under BioProject **PRJNA643596**    
+
+The repository directory needs to be set to an empty folder. This is the folder where prefetch will deposit the files   
+`cache-mgr` to remove cache-files if no longer needed or you are running out of space   
+
+```{r}
+# vdb-config -i
+```
+
+The combination of `prefetch` + `fasterq-dump` is the fastest way to extract FASTQ-files from SRA-accessions    
+The `prefetch` tool downloads all necessary files to your computer    
+The `prefetch` - tool can be invoked multiple times if the download did not succeed   
+It will not start from the beginning every time; instead, it will pick up from where the last invocation failed    
+
+Before you perform the extraction, you should make a **quick estimation about the hard-drive space required**    
+The final fastq-files will be approximately **7 times the size of the accession**   
+The fasterq-dump-tool needs temporary space ( scratch space ) of about **1.5 times the amount of the final fastq-files during the conversion**   
+Overall, the space you need during the conversion is approximately **17 times the size of the accession**   
+You can check how much space you have by running the `df -h` command    
+Under the 4th column ( Avail ), you see the amount of space you have available    
+Please take into consideration that there might be quotas set by your administrator which are not always visible. If the limit is exceeded, the 'fasterq-dump'-tool will fail and a message will be displayed.
+
+
+[08. prefetch and fasterq dump](https://github.com/ncbi/sra-tools/wiki/08.-prefetch-and-fasterq-dump)   
+The simplest way to run fasterq-dump is:    
+**`fasterq-dump SRR000001`**    
+This assumes that you have previously **`prefetched` the accession into the current working directory**   
+
+**If the directory SRR000001 is not there, the tool will try to access the accession over the network. This will be much slower and might eventually fail due to network timeouts**    
+
+The `fasterq-dump`-tool does not take multiple accessions, just one.
+
+
+### Example-240801
+
+```{r}
+# cd /Users/saitoikuto/Documents/015.RStudio/NGS_Practice
+# SRAのproject numbers → NGSの生データがあるNCBI_SRA
+# mkdir SRP
+# SRR_Acc_List.txtにあるAccessionをprefetch, SRR_Acc_List.txtはvscodeで編集すること
+# cd SRP
+# prefetch --option-file ../SRR_Acc_List.txt
+# cat ../SRR_Acc_List.txt | xargs -n1 fastq-dump --gzip --split-files
+
+# fastq sorts
+# cp ./PRJNA643596/SRR{12131115,12131166,12131167,12131168,12131169,12131170,12131171,12131172,12131173,12131174,12131176,12131177,12131178,12131179,12131180,12131181,12131182,12131183,12131184,12131185}*.fastq.gz EP_16S
+
+
+
+```
+
+```{r, eval=FALSE}
+
+for ID in $(cat ../SRR_Acc_List_EN.txt); do \
+cutadapt -g GTGYCAGCMGCCGCGGTAA -G GACTACHVGGGTATCTAATCC --discard-untrimmed --quality-cutoff 10 --quiet \
+-o P_Trim_${ID}_1.fastq.gz -p P_Trim_${ID}_2.fastq.gz \
+${ID}_1.fastq.gz ${ID}_2.fastq.gz \
+; done 
+
+# FastQC CUI 
+# /Users/saitoikuto/Documents/015.RStudio/NGS_Practice/The phyllosphere microbiome shifts toward combating melanose pathogen/EN_16S
+for ID in $(cat ../EN_P_Trim_fastq.txt); do \
+fastqc --outdir ../EN_16S_FastQC_report ${ID} \
+; done
+
+
+# /Users/saitoikuto/Documents/015.RStudio/NGS_Practice/The phyllosphere microbiome shifts toward combating melanose pathogen/EP_16S
+for ID in $(cat ../SRR_Acc_List_EP.txt); do \
+cutadapt -g GTGCCAGCMGCCGCGGTAA -G GGACTACHVGGGTWTCTAAT --discard-untrimmed --quality-cutoff 10 --quiet \
+-o P_Trim_${ID}_1.fastq.gz -p P_Trim_${ID}_2.fastq.gz \
+${ID}_1.fastq.gz ${ID}_2.fastq.gz \
+; done 
+
+# FastQC CUI 
+# /Users/saitoikuto/Documents/015.RStudio/NGS_Practice/The phyllosphere microbiome shifts toward combating melanose pathogen/EP_16S
+for ID in $(cat ../EP_P_Trim_fastq.txt); do \
+fastqc --outdir ../EP_16S_FastQC_report ${ID} \
+; done
+
+# P_Trim mv
+# /Users/saitoikuto/Documents/015.RStudio/NGS_Practice/The phyllosphere microbiome shifts toward combating melanose pathogen/EP_16S
+mv P_Trim* ../EP_16S_P_Trim
+mv P_Trim* ../EN_16S_P_Trim
+rename 's/_1.fastq.gz/_R1.fastq.gz/' P_Trim_*.fastq.gz \
+;rename 's/_2.fastq.gz/_R2.fastq.gz/' P_Trim_*.fastq.gz
+
+
+
+```
+
+
+
+
+
+
+
+
+
+

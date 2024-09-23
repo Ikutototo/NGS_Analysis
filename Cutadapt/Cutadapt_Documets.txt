@@ -1,0 +1,177 @@
+
+----- Aug 2, 2024 at 18:07:23 -----
+
+[Error tolerance](https://cutadapt.readthedocs.io/en/stable/guide.html#error-tolerance)
+
+    For example, an adapter match of length 8 containing 1 error has an error rate of 1/8=0.125. 
+    At the default maximum error rate 0.1, it would not be found, but a match of length 10 containing 1 error has an error rate of 1/10=0.1 and would be found
+
+[Specifying adapter sequences-Wildcards](https://cutadapt.readthedocs.io/en/stable/guide.html#error-tolerance)
+    All IUPAC nucleotide codes (wildcard characters, degenerate bases) are supported. 
+    For example, use an N in the adapter sequence to match any nucleotide in the read, or use -a YACGT for an adapter that matches both CACGT and TACGT.
+    The wildcard character N is useful for trimming adapters with an embedded variable barcode:
+
+    Even the X wildcard that does not match any nucleotide is supported. If used as in -a ADAPTERX or -g XADAPTER, 
+    it acquires a special meaning for the matching algorithm and disallows internal adapter matches
+
+    Use `--action=crop` to remove everything from the read except the adapter sequence. 
+    That is, the sequence before and after the adapter is removed. 
+    This is useful if the “adapter” contains wildcards (such as N nucleotides) that you are interested in.
+
+[Removing a fixed number of bases](https://cutadapt.readthedocs.io/en/stable/guide.html#cut-bases)
+    By using the `--cut` option or its abbreviation `-u`, it is possible to unconditionally remove bases from the beginning or end of each read. 
+    If the given length is positive, the bases are removed from the beginning of each read. If it is negative, the bases are removed from the end.
+    The -u/--cut option can be combined with the other options, but the --cut is applied before any adapter trimming.
+    `cutadapt -u 5 -o trimmed.fastq reads.fastq`
+
+[Quality trimming](https://cutadapt.readthedocs.io/en/stable/guide.html#quality-trimming)
+    The `-q` (or `--quality-cutoff`) parameter can be used to trim low-quality ends from reads. 
+    If you specify a single cutoff value, the 3’ end of each read is trimmed:
+
+    `cutadapt -q 10 -o output.fastq input.fastq`
+
+    For Illumina reads, this is sufficient as their quality is high at the beginning, but degrades towards the 3’ end.
+    Quality trimming is done before any adapter trimming.
+
+    For paired-end data, quality trimming is by default applied to both reads using the same cutoff(s). 
+    Use option -Q to specify different cutoffs for R2:  To disable quality-trimming of R2, use `-Q 0`.
+    `cutadapt -q 5 -Q 15,20 -o out.1.fastq -p out.2.fastq in.1.fastq in.2.fastq`
+
+    By default, quality values are assumed to be encoded as ascii(phred quality + 33). Nowadays, this should always be the case. 
+    Some old Illumina FASTQ files encode qualities as ascii(phred quality + 64). For those, you must add --quality-base=64 to the command line.
+
+[Shortening reads to a fixed length](https://cutadapt.readthedocs.io/en/stable/guide.html#shortening-reads-to-a-fixed-length)
+    To shorten each read down to a certain length, use the `--length` option or the short version `-l:`
+    
+    `cutadapt -l 10 -o output.fastq.gz input.fastq.gz`
+
+    This shortens all reads from `input.fastq.gz` down to 10 bases. The removed bases are those on the 3’ end.
+
+    For paired-end data, by default, R1 and R2 and shortened in the same way. 
+    To trim them to different lengths, use option -L: The value given for -l is applied to R1 and the value given for -L is applied to R2.
+
+    In general, the read IDs of R1 and R2 need to be identical. Cutadapt enforces this when reading paired-end FASTQ files, except that it allows a single trailing “1” or “2” as the only difference between the read IDs. 
+    This allows for read IDs ending in /1 and /2 (some old formats are like this) or .1 and .2 (fastq-dump produces this). If you use --rename, Cutadapt will also enforce this when writing paired-end reads.
+
+[Filtering reads](https://cutadapt.readthedocs.io/en/stable/guide.html#filtering)
+    By default, all processed reads, no matter whether they were trimmed or not, are written to the output file specified by the `-o` option (or to standard output if `-o` was not provided). 
+    For paired-end reads, the second read in a pair is always written to the file specified by the `-p` option.
+
+    The options described here make it possible to filter reads by either discarding them entirely or by redirecting them to other files. 
+    When redirecting reads, the basic rule is that each read is written to at most one file. You cannot write reads to more than one output file.
+
+    Filters are applied to all processed reads, no matter whether they have been modified by adapter- or quality trimming
+
+[Trimming paired-end reads](https://cutadapt.readthedocs.io/en/stable/guide.html#paired-end)
+    Cutadapt supports trimming of paired-end reads. To enable this, provide two input files and a second output file with the -p option
+    (this is the short form of --paired-output). This is the basic command line syntax:
+
+    `cutadapt -a ADAPTER_FWD -A ADAPTER_REV -o out.1.fastq -p out.2.fastq reads.1.fastq reads.2.fastq`
+
+    Also, as soon as you start to use one of the filtering options that discard reads, 
+    it is mandatory you process both files at the same time to make sure that the output files are kept synchronized. 
+    If a read is removed from one of the files, Cutadapt will always ensure that it is also removed from the other file.
+
+    The following command-line options are applied to both reads:
+    
+    `-q` (along with `--quality-base`). You can use `-Q` to specify a different quality-trimming threshold for R2.
+    `--times` applies to all the adapters given
+    `--trim-n`
+    `--action`
+    `--length` You can use `-L` to shorten R2 to a different length than R1.
+    `--length-tag`
+    `--prefix`, `--suffix`
+
+    Importantly, Cutadapt always discards both reads of a pair if it determines that the pair should be discarded. 
+    This ensures that the reads in the output files are in sync. (If you don’t want or need this, you can run Cutadapt separately on the R1 and R2 files.)
+
+
+    When processing paired-end data, Cutadapt has two sets of adapters to work with: The ones that are to be found and removed in the forward read (R1), 
+    specified with `-a`/`-g`/`-b`, and the ones to be found and removed in the reverse read (R2), specified with `-A`/`-G`/`-B`
+
+    When Cutadapt has multiple adapter sequences to work with, either specified explicitly on the command line or via a FASTA file, it decides in the following way which adapter should be trimmed:
+
+    * All given adapter sequences are matched to the read.
+    * Adapter matches where the overlap length (see the -O parameter) is too small or where the error rate is too high (-e) are removed from further consideration.
+    * Among the remaining matches, the one with the largest alignment score is chosen.
+    * If there is a tie, the first adapter wins. The order of adapters is the order in which they are given on the command line or in which they are found in the FASTA file.
+
+
+    [Warning about incomplete adapter sequences](https://cutadapt.readthedocs.io/en/stable/guide.html#warnbase)
+
+        Bases preceding removed adapters:
+        A: 95.5%
+        C: 1.0%
+        G: 1.6%
+        T: 1.6%
+        none/other: 0.3%
+    WARNING:
+        The adapter is preceded by "A" extremely often.
+        The provided adapter sequence may be incomplete.
+        To fix the problem, add "A" to the beginning of the adapter sequence.
+    This means that in 95.5% of the cases in which an adapter was removed from a read, the base coming before that was an A.
+    If your DNA fragments are not random, such as in amplicon sequencing, then this is to be expected and the warning can be ignored. 
+    If the DNA fragments are supposed to be random, then the message may be genuine: The adapter sequence may be incomplete and should include an additional A in the beginning.
+
+   `--trim-n`
+    Remove flanking N bases from each read. That is, a read such as this:
+
+    NNACGTACGTNNNN
+    Is trimmed to just ACGTACGT. This option is applied after adapter trimming. 
+    If you want to get rid of N bases before adapter removal, use quality trimming: N bases typically also have a low quality value associated with them.
+
+[How to read the report](https://cutadapt.readthedocs.io/en/stable/guide.html#how-to-read-the-report)
+    a table is output that gives more detailed information about the lengths of the removed sequences. 
+    The following is only an excerpt; some rows are left out:
+        Overview of removed sequences
+        length  count   expect  max.err error counts
+        3       140     156.2   0       140
+        4       57      39.1    0       57
+        5       50      9.8     0       50
+        6       35      2.4     0       35
+        7       13      0.3     0       1 12
+        8       31      0.1     1       0 31
+        ...
+        100     397     0.0     3       358 36 3
+    
+    The first row tells us the following: 
+        Three bases were removed in 140 reads;
+        randomly, one would expect this to occur 156.2 times; 
+        the maximum number of errors at that match length is 0 
+        (this is actually redundant since we know already that no errors are allowed at lengths 0-7 bp).
+
+    The last column shows the number of reads that had 0, 1, 2 … errors. 
+    In the last row, for example, 358 reads matched the adapter with zero errors, 36 with 1 error, and 3 matched with 2 errors.
+
+    In the row for length 7 is an apparent anomaly, where the max.err column is 0 
+    and yet we have 31 reads matching with 1 error. This is because the matches are actually contributed by alignments to the first 8 bases of the adapter with one deletion, so 7 bases are removed but the error cut-off applied is for length 8.
+
+    The “expect” column gives only a rough estimate of the number of sequences that is expected to match randomly, 
+    but it can help to estimate whether the matches that were found are true adapter matches or if they are due to chance. 
+    At lengths 6, for example, only 2.4 reads are expected, but 35 do match, which hints that most of these matches are due to actual adapters. 
+    For slightly more accurate estimates, you can provide the correct GC content (as a percentage) of your reads with the option `--gc-content`. The default is `--gc-content=50`
+
+    🌕 Note that the “length” column refers to the length of the removed sequence. 
+    That is, the actual length of the match in the above row at length 100 is 20 since that is the adapter length. 
+    Assuming the read length is 100, the adapter was found in the beginning of 397 reads and therefore those reads were trimmed to a length of zero.
+
+    JSON report
+    With `--json=filename`.cutadapt.json, a report in JSON format is written to the given file.
+    We strongly recommend that you use the .cutadapt.json file name extension for this file for easier discoverability by log-parsing tools such as MultiQC.
+    See the description of the JSON report file format.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
